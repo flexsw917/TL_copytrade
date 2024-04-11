@@ -1,0 +1,123 @@
+
+import requests
+
+def authenticate(email, password, server):
+    url = "https://api.tradelocker.com/auth/jwt/token"
+    payload = {
+        "email": email,
+        "password": password,
+        "server": server
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        return {
+            "accessToken": data["accessToken"],
+            "refreshToken": data["refreshToken"],
+            "expiresIn": data["expiresIn"],
+            "refreshExpiresIn": data["refreshExpiresIn"]
+        }
+    else:
+        raise Exception(f"Authentication failed with status code {response.status_code}")
+
+def refresh_token(refreshToken):
+    url = "https://api.tradelocker.com/auth/jwt/refresh"
+    payload = {"refreshToken": refreshToken}
+    headers = {
+        "Content-Type": "application/json"
+    }
+    
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code == 200:
+        data = response.json()
+        return {
+            "accessToken": data["accessToken"],
+            "refreshToken": data["refreshToken"],
+            "expiresIn": data["expiresIn"],
+            "refreshExpiresIn": data["refreshExpiresIn"]
+        }
+    else:
+        raise Exception(f"Token refresh failed with status code {response.status_code}")
+
+def get_all_accounts(access_token):
+    url = "https://api.tradelocker.com/auth/jwt/all-accounts"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        accounts = response.json()
+        return accounts
+    else:
+        raise Exception(f"Failed to retrieve accounts with status code {response.status_code}")
+
+def get_open_positions(account_id, access_token):
+    url = f"https://api.tradelocker.com/trade/accounts/{account_id}/positions"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        positions = response.json()
+        return positions
+    else:
+        raise Exception(f"Failed to retrieve open positions with status code {response.status_code}")
+
+def place_order(account_id, access_token, order_details):
+    url = f"https://api.tradelocker.com/trade/accounts/{account_id}/orders"
+    headers = {
+        "Authorization": f"Bearer {access_token}",
+        "Content-Type": "application/json"
+    }
+    
+    response = requests.post(url, json=order_details, headers=headers)
+    if response.status_code in [200, 201]:
+        return response.json()
+    else:
+        raise Exception(f"Failed to place order with status code {response.status_code}")
+
+def monitor_and_replicate_trades(master_acc_id, slave_acc_ids, master_access_token, slave_access_tokens):
+    master_positions = get_open_positions(master_acc_id, master_access_token)
+    
+    for slave_acc_id, slave_access_token in zip(slave_acc_ids, slave_access_tokens):
+        for position in master_positions:
+            order_details = {
+                "instrumentId": position["instrumentId"],
+                "orderType": position["type"],
+                "quantity": position["quantity"],
+                "price": position["price"]
+            }
+            
+            try:
+                place_order(slave_acc_id, slave_access_token, order_details)
+                print(f"Order replicated for slave account {slave_acc_id}: {order_details}")
+            except Exception as e:
+                print(f"Failed to place order on slave account {slave_acc_id}: {str(e)}")
+
+def main():
+    master_email = "master@example.com"
+    master_password = "masterpassword"
+    master_server = "MasterServer"
+    slave_emails = ["slave1@example.com", "slave2@example.com"]
+    slave_passwords = ["slave1password", "slave2password"]
+    slave_servers = ["SlaveServer1", "SlaveServer2"]
+
+    master_auth = authenticate(master_email, master_password, master_server)
+    master_access_token = master_auth["accessToken"]
+    master_acc_id = "masterAccountId"
+    
+    slave_access_tokens = []
+    slave_acc_ids = ["slaveAccountId1", "slaveAccountId2"]
+    for email, password, server in zip(slave_emails, slave_passwords, slave_servers):
+        slave_auth = authenticate(email, password, server)
+        slave_access_tokens.append(slave_auth["accessToken"])
+
+    monitor_and_replicate_trades(master_acc_id, slave_acc_ids, master_access_token, slave_access_tokens)
+
+main()
