@@ -1,0 +1,17 @@
+# Test the authentication function
+master_token, master_refresh = get_jwt_token(MASTER_EMAIL, MASTER_PASSWORD, MASTER_SERVER)
+print("Master Token:", master_token)  # Check if token is printed correctly
+
+slave_token, slave_refresh = get_jwt_token(SLAVE_EMAIL, SLAVE_PASSWORD, SLAVE_SERVER)
+print("Slave Token:", slave_token)  # Check if token is printed correctly
+
+# Test fetching positions from the master account
+master_positions = fetch_positions(MASTER_ACCNUM, master_token)
+print("Master Positions:", master_positions)  # Output should list current positions
+
+# Assuming master_positions is not empty, test replicating a position
+if master_positions:
+    order_id = replicate_position(master_positions[0], SLAVE_ACCNUM, slave_token)
+    print("Replicated Position Order ID:", order_id)  # Check if order ID is returned
+else:
+    print("No positions to replicate.")
