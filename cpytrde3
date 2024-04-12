@@ -1,0 +1,78 @@
+# Importing necessary libraries
+import requests
+import time
+
+# Constants for API access
+API_URL = "https://demo.tradelocker.com/backend-api"
+
+# Master account details
+MASTER_EMAIL = "flexsw917@gmail.com"
+MASTER_PASSWORD = "imR^N8i."
+MASTER_SERVER = "KOT-DEMO"
+MASTER_ACCNUM = "445731"
+
+# Slave account details
+SLAVE_EMAIL = "flexsw917@gmail.com"
+SLAVE_PASSWORD = "h$6AYKc})QPG"
+SLAVE_SERVER = "FUTRAD"
+SLAVE_ACCNUM = "449384"
+
+# Function to obtain JWT token
+def get_jwt_token(email, password, server):
+    """ Authenticate and obtain JWT token from the TradeLocker API """
+    url = f"{API_URL}/auth/jwt/token"
+    payload = {
+        "email": email,
+        "password": password,
+        "server": server
+    }
+    response = requests.post(url, data=payload)
+    if response.status_code == 200:
+        tokens = response.json()
+        return tokens['accessToken'], tokens['refreshToken']
+    else:
+        raise Exception("Failed to authenticate and obtain token")
+
+# Function to fetch current positions
+def fetch_positions(accNum, accessToken):
+    """ Fetch current positions for the given account """
+    url = f"{API_URL}/trade/accounts/{accNum}/positions"
+    headers = {
+        "Authorization": f"Bearer {accessToken}",
+        "accNum": accNum
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()['positions']
+    else:
+        raise Exception("Failed to fetch positions")
+
+# Function to replicate position in slave account
+def replicate_position(position, slaveAccNum, accessToken):
+    """ Create an identical position in the slave account """
+    url = f"{API_URL}/trade/accounts/{slaveAccNum}/orders"
+    headers = {
+        "Authorization": f"Bearer {accessToken}",
+        "accNum": slaveAccNum
+    }
+    payload = {
+        "tradableInstrumentId": position['tradableInstrumentId'],
+        "quantity": position['quantity'],
+        "side": position['side'],
+        "type": "market"  # Assuming we want to replicate using market orders
+    }
+    response = requests.post(url, headers=headers, data=payload)
+    if response.status_code == 200:
+        return response.json()['orderId']
+    else:
+        raise Exception("Failed to replicate position")
+
+# Example call to authenticate and replicate positions - To be uncommented for final execution
+# master_token, master_refresh = get_jwt_token(MASTER_EMAIL, MASTER_PASSWORD, MASTER_SERVER)
+# slave_token, slave_refresh = get_jwt_token(SLAVE_EMAIL, SLAVE_PASSWORD, SLAVE_SERVER)
+# master_positions = fetch_positions(MASTER_ACCNUM, master_token)
+# for position in master_positions:
+#     replicate_position(position, SLAVE_ACCNUM, slave_token)
+#     time.sleep(2)  # Sleep to respect API rate limits
+
+# Note: Function calls are commented out to avoid execution in this environment. They should be uncommented in the final script.
