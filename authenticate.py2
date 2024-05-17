@@ -1,0 +1,70 @@
+from tradelocker import TLAPI
+import requests
+
+# Define your credentials
+environment = "https://demo.tradelocker.com"
+username = "user@email.com"
+password = "YOUR_PASS"
+server = "SERVER_NAME"
+
+# Initialize the API client
+tl = TLAPI(environment=environment, username=username, password=password, server=server)
+
+# Function to obtain JWT token
+def get_jwt_token(username, password, server):
+    url = f"{environment}/backend-api/auth/jwt/token"
+    payload = {
+        "email": username,
+        "password": password,
+        "server": server
+    }
+    headers = {
+        "Content-Type": "application/json"
+    }
+    response = requests.post(url, json=payload, headers=headers)
+    if response.status_code == 201:
+        data = response.json()
+        return data['accessToken'], data['refreshToken']
+    else:
+        raise Exception("Failed to obtain JWT token")
+
+# Function to fetch all accounts
+def get_all_accounts(access_token):
+    url = f"{environment}/backend-api/auth/jwt/all-accounts"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()['accounts']
+    else:
+        raise Exception("Failed to fetch accounts")
+
+# Function to fetch all instruments for a specific account
+def get_all_instruments(access_token, account_id):
+    url = f"{environment}/backend-api/trade/accounts/{account_id}/instruments"
+    headers = {
+        "Authorization": f"Bearer {access_token}"
+    }
+    response = requests.get(url, headers=headers)
+    if response.status_code == 200:
+        return response.json()['instruments']
+    else:
+        raise Exception("Failed to fetch instruments")
+
+# Get the JWT token
+access_token, refresh_token = get_jwt_token(username, password, server)
+print("Access Token:", access_token)
+print("Refresh Token:", refresh_token)
+
+# Fetch all accounts
+accounts = get_all_accounts(access_token)
+print("Accounts:", accounts)
+
+# Fetch all instruments for the first account
+if accounts:
+    account_id = accounts[0]['id']
+    instruments = get_all_instruments(access_token, account_id)
+    print("Instruments:", instruments)
+else:
+    print("No accounts found")
